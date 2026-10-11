@@ -34,15 +34,21 @@ function render(){
  $('#done').onclick=()=>{commit();sess=newSess();summary=null;view='log';save();render()};
  $('#back').onclick=()=>{summary=null;view='log';render()};return}
  if(view==='log'){$('#title').textContent='Today · '+fmtDate(Date.now());
-  let h=sess.items.map(it=>`<div class="card"><h3><span>${esc(it.name)}</span><button class="x" data-rm="${it.uid}">✕</button></h3>`+
+  const cards=sess.items.map(it=>`<div class="card" id="card-${it.uid}"><h3><span>${esc(it.name)}</span><button class="x" data-rm="${it.uid}">✕</button></h3>`+
    fields(it).map(([k,l,st])=>`<div class="row"><label>${l}</label><button class="step" data-u="${it.uid}" data-k="${k}" data-d="-${st}">−</button><input inputmode="decimal" data-u="${it.uid}" data-k="${k}" value="${it[k]??0}"><button class="step" data-u="${it.uid}" data-k="${k}" data-d="${st}">+</button></div>`).join('')+`</div>`).join('');
-  h+=`<div class="muted" style="margin:10px 4px">Tap to add:</div>`+lib.map(e=>{const on=sess.items.some(i=>i.name===e.name);return `<div class="ex${on?' sel':''}" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small>${on?`<span data-val="${esc(e.name)}">${shortVals(sess.items.find(i=>i.name===e.name))}</span>`:typeName[e.type]}</small></span><span class="mark">${on?'✓':'+'}</span></div>`}).join('');
+  let h=`<div class="muted" style="margin:10px 4px">Tap to add:</div>`+lib.map(e=>{const it=sess.items.find(i=>i.name===e.name);return it?
+    `<div class="ex sel" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small><span class="vlink" data-val="${esc(e.name)}" data-go="${it.uid}">${shortVals(it)}</span></small></span><button class="mark unsel" data-unsel="${it.uid}" aria-label="Remove from session">✓</button></div>`:
+    `<div class="ex" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><span class="mark">+</span></div>`}).join('');
+  h+=(sess.items.length?'<button class="btn sec full" id="clear">Clear session</button><div class="muted" style="margin:14px 4px 0">Today\'s session:</div>':'')+cards;
   h+=`<div class="card"><textarea id="notes" placeholder="Notes (optional)">${esc(sess.notes)}</textarea></div>
-  <button class="btn full" id="finish" ${sess.items.length?'':'disabled style="opacity:.4"'}>Finish workout</button>
-  ${sess.items.length?'<button class="btn sec full" id="clear">Clear session</button>':''}`;
+  <button class="btn full" id="finish" ${sess.items.length?'':'disabled style="opacity:.4"'}>Finish workout</button>`;
   a.innerHTML=h;
-  a.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{e.preventDefault();addToSess(b.dataset.add,b)});
-  a.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{sess.items=sess.items.filter(x=>x.uid!==b.dataset.rm);save();render()});
+  const removeItem=u=>{const y=scrollY;sess.items=sess.items.filter(x=>x.uid!==u);save();render();scrollTo(0,y);requestAnimationFrame(()=>scrollTo(0,y))};
+  a.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{e.preventDefault();
+    const un=e.target.closest('[data-unsel]');if(un){e.stopPropagation();return removeItem(un.dataset.unsel)}
+    const go=e.target.closest('[data-go]');if(go){const c=document.getElementById('card-'+go.dataset.go);if(c){c.scrollIntoView({behavior:'smooth',block:'center'});c.classList.remove('flash');void c.offsetWidth;c.classList.add('flash')}return}
+    addToSess(b.dataset.add,b)});
+  a.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeItem(b.dataset.rm));
   // Steppers/inputs update state + the one input in place (no full re-render), so taps never land on a rebuilt/shifted DOM.
   const item=u=>sess.items.find(x=>x.uid===u);
   a.querySelectorAll('.step').forEach(b=>b.onclick=()=>{const it=item(b.dataset.u);if(!it)return;const k=b.dataset.k;
