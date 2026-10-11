@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0f17"><title>Workout Log</title>
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
+<style>
+*{box-sizing:border-box}body{margin:0;font:17px -apple-system,system-ui,sans-serif;background:#0b0f17;color:#e5e7eb;padding:env(safe-area-inset-top) 0 calc(80px + env(safe-area-inset-bottom))}
+header{padding:14px 16px;font-size:22px;font-weight:700}main{padding:0 12px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#111827;border-top:1px solid #1f2937;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;color:#9ca3af;font-size:16px;padding:18px 0}nav button.on{color:#22c55e;font-weight:700}
+.card{background:#111827;border-radius:14px;padding:14px;margin:10px 0}
+button{font:inherit;border-radius:12px;border:0;cursor:pointer}
+.btn{background:#22c55e;color:#04120a;font-weight:700;padding:14px 18px;min-height:50px}.btn.sec{background:#1f2937;color:#e5e7eb}.btn.danger{background:#7f1d1d;color:#fee2e2}
+.full{width:100%;margin:6px 0}
+.ex{display:flex;align-items:center;justify-content:space-between;padding:14px;margin:6px 0;background:#111827;border-radius:12px;min-height:56px}
+.ex .name{flex:1}.ex small{color:#9ca3af;display:block}
+.x{background:#1f2937;color:#f87171;width:44px;height:44px;font-size:20px}
+.row{display:flex;align-items:center;gap:8px;margin:8px 0}.row label{width:70px;color:#9ca3af;font-size:15px}
+.step{background:#1f2937;color:#e5e7eb;width:52px;height:52px;font-size:26px}
+.row input{flex:1;min-width:0;height:52px;text-align:center;font-size:22px;background:#0b0f17;color:#fff;border:1px solid #374151;border-radius:12px}
+input[type=text],textarea,select{width:100%;padding:12px;font-size:17px;background:#0b0f17;color:#fff;border:1px solid #374151;border-radius:12px}
+textarea{min-height:80px}h3{margin:4px 0 8px;display:flex;justify-content:space-between;align-items:center}
+pre{white-space:pre-wrap;background:#0b0f17;padding:12px;border-radius:12px;font-size:15px}
+.muted{color:#9ca3af}.hidden{display:none}.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#22c55e;color:#000;padding:10px 16px;border-radius:10px}
+</style></head><body>
+<header id="title">Today</header><main id="app"></main>
+<nav><button data-v="log">Log</button><button data-v="lib">Exercises</button><button data-v="hist">History</button></nav>
+<script src="app.js"></script></body></html>
