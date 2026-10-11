@@ -16,7 +16,13 @@ function fmtLine(it){const s=it.sets;
 function fmtDate(d){return new Date(d).toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'})}
 function buildSummary(s){let t=`Workout - ${fmtDate(s.date)}\n\n`+s.items.map(i=>'- '+fmtLine(i)).join('\n');if(s.notes.trim())t+=`\n\nNotes: ${s.notes.trim()}`;return t}
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),1500)}
-function addToSess(id){const ex=lib.find(e=>e.id===id);if(!ex)return;sess.items.push({uid:uid(),name:ex.name,type:ex.type,...defaults(ex)});save();view='log';render()}
+function addToSess(id,el){const ex=lib.find(e=>e.id===id);if(!ex)return;
+ if(sess.items.some(i=>i.name===ex.name)){if(el){el.classList.remove('nudge');void el.offsetWidth;el.classList.add('nudge')}return}
+ const y=window.scrollY;sess.items.push({uid:uid(),name:ex.name,type:ex.type,...defaults(ex)});save();view='log';render();
+ window.scrollTo(0,y);requestAnimationFrame(()=>window.scrollTo(0,y))}
+function shortVals(it){if(it.type==='t')return `${it.sets}x${it.secs}s`;
+ if(it.type==='bw')return `${it.sets}x${it.reps} `+(it.weight>0?`+${it.weight} lb`:'bodyweight');return `${it.sets}x${it.reps} ${it.weight} lb`}
+function updVal(it){document.querySelectorAll('.ex [data-val]').forEach(n=>{if(n.dataset.val===it.name)n.textContent=shortVals(it)})}
 function fields(it){return it.type==='t'?[['sets','Sets',1],['secs','Secs',5]]:[['sets','Sets',1],['reps','Reps',1],['weight',it.type==='bw'?'+lb':'lb',5]]}
 function render(){
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
@@ -30,19 +36,19 @@ function render(){
  if(view==='log'){$('#title').textContent='Today · '+fmtDate(Date.now());
   let h=sess.items.map(it=>`<div class="card"><h3><span>${esc(it.name)}</span><button class="x" data-rm="${it.uid}">✕</button></h3>`+
    fields(it).map(([k,l,st])=>`<div class="row"><label>${l}</label><button class="step" data-u="${it.uid}" data-k="${k}" data-d="-${st}">−</button><input inputmode="decimal" data-u="${it.uid}" data-k="${k}" value="${it[k]??0}"><button class="step" data-u="${it.uid}" data-k="${k}" data-d="${st}">+</button></div>`).join('')+`</div>`).join('');
-  h+=`<div class="muted" style="margin:10px 4px">Tap to add:</div>`+lib.map(e=>{const on=sess.items.some(i=>i.name===e.name);return `<div class="ex${on?' sel':''}" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small>${typeName[e.type]}${on?' · in session':''}</small></span><span class="mark">${on?'✓':'+'}</span></div>`}).join('');
+  h+=`<div class="muted" style="margin:10px 4px">Tap to add:</div>`+lib.map(e=>{const on=sess.items.some(i=>i.name===e.name);return `<div class="ex${on?' sel':''}" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small>${on?`<span data-val="${esc(e.name)}">${shortVals(sess.items.find(i=>i.name===e.name))}</span>`:typeName[e.type]}</small></span><span class="mark">${on?'✓':'+'}</span></div>`}).join('');
   h+=`<div class="card"><textarea id="notes" placeholder="Notes (optional)">${esc(sess.notes)}</textarea></div>
   <button class="btn full" id="finish" ${sess.items.length?'':'disabled style="opacity:.4"'}>Finish workout</button>
   ${sess.items.length?'<button class="btn sec full" id="clear">Clear session</button>':''}`;
   a.innerHTML=h;
-  a.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addToSess(b.dataset.add));
+  a.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{e.preventDefault();addToSess(b.dataset.add,b)});
   a.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{sess.items=sess.items.filter(x=>x.uid!==b.dataset.rm);save();render()});
   // Steppers/inputs update state + the one input in place (no full re-render), so taps never land on a rebuilt/shifted DOM.
   const item=u=>sess.items.find(x=>x.uid===u);
   a.querySelectorAll('.step').forEach(b=>b.onclick=()=>{const it=item(b.dataset.u);if(!it)return;const k=b.dataset.k;
     it[k]=Math.max(0,Math.round(((+it[k]||0)+ +b.dataset.d)*10)/10);save();
-    const inp=a.querySelector(`input[data-u="${b.dataset.u}"][data-k="${k}"]`);if(inp)inp.value=it[k]});
-  a.querySelectorAll('.row input').forEach(n=>{n.onfocus=()=>n.select();n.oninput=()=>{const it=item(n.dataset.u);if(!it)return;const v=parseFloat(n.value);it[n.dataset.k]=isNaN(v)||v<0?0:v;save()};
+    const inp=a.querySelector(`input[data-u="${b.dataset.u}"][data-k="${k}"]`);if(inp)inp.value=it[k];updVal(it)});
+  a.querySelectorAll('.row input').forEach(n=>{n.onfocus=()=>n.select();n.oninput=()=>{const it=item(n.dataset.u);if(!it)return;const v=parseFloat(n.value);it[n.dataset.k]=isNaN(v)||v<0?0:v;save();updVal(it)};
     n.onblur=()=>{const it=item(n.dataset.u);if(it)n.value=it[n.dataset.k]}});
   $('#notes').oninput=e=>{sess.notes=e.target.value;save()};
   $('#finish').onclick=finish;if($('#clear'))$('#clear').onclick=()=>{if(confirm('Clear today\'s session?')){sess=newSess();save();render()}};
