@@ -30,7 +30,7 @@ function render(){
  if(view==='log'){$('#title').textContent='Today · '+fmtDate(Date.now());
   let h=sess.items.map(it=>`<div class="card"><h3><span>${esc(it.name)}</span><button class="x" data-rm="${it.uid}">✕</button></h3>`+
    fields(it).map(([k,l,st])=>`<div class="row"><label>${l}</label><button class="step" data-u="${it.uid}" data-k="${k}" data-d="-${st}">−</button><input inputmode="decimal" data-u="${it.uid}" data-k="${k}" value="${it[k]??0}"><button class="step" data-u="${it.uid}" data-k="${k}" data-d="${st}">+</button></div>`).join('')+`</div>`).join('');
-  h+=`<div class="muted" style="margin:10px 4px">Tap to add:</div>`+lib.map(e=>`<div class="ex" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><span style="color:#22c55e;font-size:26px">+</span></div>`).join('');
+  h+=`<div class="muted" style="margin:10px 4px">Tap to add:</div>`+lib.map(e=>{const on=sess.items.some(i=>i.name===e.name);return `<div class="ex${on?' sel':''}" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small>${typeName[e.type]}${on?' · in session':''}</small></span><span class="mark">${on?'✓':'+'}</span></div>`}).join('');
   h+=`<div class="card"><textarea id="notes" placeholder="Notes (optional)">${esc(sess.notes)}</textarea></div>
   <button class="btn full" id="finish" ${sess.items.length?'':'disabled style="opacity:.4"'}>Finish workout</button>
   ${sess.items.length?'<button class="btn sec full" id="clear">Clear session</button>':''}`;
@@ -48,7 +48,8 @@ function render(){
   $('#finish').onclick=finish;if($('#clear'))$('#clear').onclick=()=>{if(confirm('Clear today\'s session?')){sess=newSess();save();render()}};
  }else if(view==='lib'){$('#title').textContent='Exercises';
   a.innerHTML=`<div class="card"><input type="text" id="nn" placeholder="New exercise name"><select id="nt" style="margin-top:8px"><option value="w">Weighted</option><option value="bw">Bodyweight</option><option value="t">Timed</option></select><button class="btn full" id="addex">Add exercise</button></div>`+
-  lib.map(e=>`<div class="ex"><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><button class="x" data-del="${esc(e.id)}">🗑</button></div>`).join('');
+  '<div id="libl">'+lib.map(e=>`<div class="ex lr" data-id="${esc(e.id)}"><span class="handle" aria-label="Drag to reorder">☰</span><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><button class="mv" data-mv="-1" aria-label="Move up">▲</button><button class="mv" data-mv="1" aria-label="Move down">▼</button><button class="x" data-del="${esc(e.id)}">🗑</button></div>`).join('')+'</div>';
+  setupReorder($('#libl'));
   $('#addex').onclick=()=>{const n=$('#nn').value.trim();if(!n)return;if(lib.some(e=>e.name.toLowerCase()===n.toLowerCase()))return toast('Already exists');lib.push({id:n+'-'+Date.now(),name:n,type:$('#nt').value});save();render()};
   a.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const e=lib.find(x=>x.id===b.dataset.del);if(confirm(`Delete ${e.name}?`)){lib=lib.filter(x=>x!==e);save();render()}});
  }else{$('#title').textContent='History';
@@ -66,3 +67,28 @@ function copy(t){(navigator.clipboard?navigator.clipboard.writeText(t):Promise.r
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{summary=null;view=b.dataset.v;render()});
 render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js',{scope:'./'});
+
+// ---- Reordering (Exercises screen). Moves DOM nodes in place; never re-renders mid-gesture.
+function syncLibFromDom(list){const ids=[...list.children].map(n=>n.dataset.id);lib=ids.map(id=>lib.find(e=>e.id===id)).filter(Boolean);save()}
+let drag=null;document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
+function setupReorder(list){
+ list.querySelectorAll('.mv').forEach(b=>b.onclick=()=>{const row=b.closest('.lr');
+  if(b.dataset.mv==='-1'){if(row.previousElementSibling)list.insertBefore(row,row.previousElementSibling)}
+  else if(row.nextElementSibling)list.insertBefore(row.nextElementSibling,row);
+  syncLibFromDom(list)});
+ list.querySelectorAll('.handle').forEach(h=>{
+  h.addEventListener('pointerdown',e=>{e.preventDefault();const row=h.closest('.lr');
+   drag={row,id:e.pointerId,startY:e.clientY,baseTop:row.getBoundingClientRect().top};
+   row.classList.add('dragging');h.setPointerCapture(e.pointerId)});
+  h.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;e.preventDefault();
+   const row=drag.row;row.style.transform='';
+   // find the sibling whose midpoint we've crossed
+   const y=e.clientY;let sib;
+   while((sib=row.previousElementSibling)&&y<sib.getBoundingClientRect().top+sib.offsetHeight/2)list.insertBefore(row,sib);
+   while((sib=row.nextElementSibling)&&y>sib.getBoundingClientRect().top+sib.offsetHeight/2)list.insertBefore(sib,row);
+   const r=row.getBoundingClientRect();row.style.transform=`translateY(${y-(r.top+r.height/2)}px)`;
+   // auto-scroll near edges
+   if(y<60)window.scrollBy(0,-8);else if(y>innerHeight-110)window.scrollBy(0,8)});
+  const end=e=>{if(!drag||e.pointerId!==drag.id)return;drag.row.classList.remove('dragging');drag.row.style.transform='';drag=null;syncLibFromDom(list)};
+  h.addEventListener('pointerup',end);h.addEventListener('pointercancel',end)})
+}
