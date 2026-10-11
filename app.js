@@ -39,9 +39,9 @@ function render(){
   let h=`<div class="muted" style="margin:10px 4px">Tap to add:</div>`+lib.map(e=>{const it=sess.items.find(i=>i.name===e.name);return it?
     `<div class="ex sel" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small><span class="vlink" data-val="${esc(e.name)}" data-go="${it.uid}">${shortVals(it)}</span></small></span><button class="mark unsel" data-unsel="${it.uid}" aria-label="Remove from session">✓</button></div>`:
     `<div class="ex" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><span class="mark">+</span></div>`}).join('');
-  h+=(sess.items.length?'<button class="btn sec full" id="clear">Clear session</button><div class="muted" style="margin:14px 4px 0">Today\'s session:</div>':'')+cards;
-  h+=`<div class="card"><textarea id="notes" placeholder="Notes (optional)">${esc(sess.notes)}</textarea></div>
-  <button class="btn full" id="finish" ${sess.items.length?'':'disabled style="opacity:.4"'}>Finish workout</button>`;
+  h+=`<button class="btn full" id="finish" style="margin-top:12px${sess.items.length?'':';opacity:.4'}" ${sess.items.length?'':'disabled'}>Finish workout</button>`;
+  h+=(sess.items.length?'<div class="muted" style="margin:14px 4px 0">Today\'s session:</div>':'')+cards;
+  h+=`<div class="card"><textarea id="notes" placeholder="Notes (optional)">${esc(sess.notes)}</textarea></div>`;
   a.innerHTML=h;
   const removeItem=u=>{const y=scrollY;sess.items=sess.items.filter(x=>x.uid!==u);save();render();scrollTo(0,y);requestAnimationFrame(()=>scrollTo(0,y))};
   a.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{e.preventDefault();
@@ -57,7 +57,7 @@ function render(){
   a.querySelectorAll('.row input').forEach(n=>{n.onfocus=()=>n.select();n.oninput=()=>{const it=item(n.dataset.u);if(!it)return;const v=parseFloat(n.value);it[n.dataset.k]=isNaN(v)||v<0?0:v;save();updVal(it)};
     n.onblur=()=>{const it=item(n.dataset.u);if(it)n.value=it[n.dataset.k]}});
   $('#notes').oninput=e=>{sess.notes=e.target.value;save()};
-  $('#finish').onclick=finish;if($('#clear'))$('#clear').onclick=()=>{if(confirm('Clear today\'s session?')){sess=newSess();save();render()}};
+  $('#finish').onclick=finish;
  }else if(view==='lib'){$('#title').textContent='Exercises';
   a.innerHTML=`<div class="card"><input type="text" id="nn" placeholder="New exercise name"><select id="nt" style="margin-top:8px"><option value="w">Weighted</option><option value="bw">Bodyweight</option><option value="t">Timed</option></select><button class="btn full" id="addex">Add exercise</button></div>`+
   '<div id="libl">'+lib.map(e=>`<div class="ex lr" data-id="${esc(e.id)}"><span class="handle" aria-label="Drag to reorder">☰</span><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><button class="mv" data-mv="-1" aria-label="Move up">▲</button><button class="mv" data-mv="1" aria-label="Move down">▼</button><button class="x" data-del="${esc(e.id)}">🗑</button></div>`).join('')+'</div>';
