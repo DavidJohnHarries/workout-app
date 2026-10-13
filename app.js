@@ -24,7 +24,7 @@ function shortVals(it){if(it.type==='t')return `${it.sets}x${it.secs}s`;
  if(it.type==='bw')return `${it.sets}x${it.reps} `+(it.weight>0?`+${it.weight} lb`:'bodyweight');return `${it.sets}x${it.reps} ${it.weight} lb`}
 function updVal(it){document.querySelectorAll('.ex [data-val]').forEach(n=>{if(n.dataset.val===it.name)n.textContent=shortVals(it)})}
 function fields(it){return it.type==='t'?[['sets','Sets',1],['secs','Secs',5]]:[['sets','Sets',1],['reps','Reps',1],['weight',it.type==='bw'?'+lb':'lb',5]]}
-function render(){
+function render(){endDrag();
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
  const a=$('#app');
  if(summary){$('#title').textContent='Summary';a.innerHTML=`<div class="card"><pre id="sum">${esc(summary)}</pre>
@@ -80,27 +80,27 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{summary=null;v
 render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js',{scope:'./'});
 
-// ---- Reordering (Exercises screen). Moves DOM nodes in place; never re-renders mid-gesture.
+// ---- Reordering. The dragged row is NEVER detached/re-inserted (that drops iOS pointer capture);
+// only its siblings are moved around it. Cleanup always runs (up/cancel/lostcapture/touchend/blur/hidden/render).
+var drag=null;
+document.addEventListener('touchmove',e=>{if(drag&&e.cancelable)e.preventDefault()},{passive:false});
 function syncLibFromDom(list){const ids=[...list.children].map(n=>n.dataset.id);lib=ids.map(id=>lib.find(e=>e.id===id)).filter(Boolean);save()}
-let drag=null;document.addEventListener('touchmove',e=>{if(drag)e.preventDefault()},{passive:false});
+function endDrag(){if(!drag)return;const d=drag;drag=null;
+ try{d.h.releasePointerCapture&&d.h.hasPointerCapture&&d.h.hasPointerCapture(d.id)&&d.h.releasePointerCapture(d.id)}catch(_){}
+ d.row.classList.remove('dragging');d.row.style.transform='';if(d.list.isConnected)syncLibFromDom(d.list)}
+function dragMove(e){if(!drag||(e.pointerId!=null&&e.pointerId!==drag.id))return;if(e.cancelable)e.preventDefault();
+ const {row,list}=drag;row.style.transform='';const y=e.clientY;let sib;
+ while((sib=row.previousElementSibling)&&y<sib.getBoundingClientRect().top+sib.offsetHeight/2)list.insertBefore(sib,row.nextElementSibling); // move sibling below row
+ while((sib=row.nextElementSibling)&&y>sib.getBoundingClientRect().top+sib.offsetHeight/2)list.insertBefore(sib,row);                       // move sibling above row
+ const r=row.getBoundingClientRect();row.style.transform=`translateY(${y-(r.top+r.height/2)}px)`;
+ if(y<60)scrollBy(0,-8);else if(y>innerHeight-110)scrollBy(0,8)}
+document.addEventListener('pointermove',dragMove,{passive:false});
+['pointerup','pointercancel','touchend','touchcancel'].forEach(t=>document.addEventListener(t,e=>{if(drag&&(e.pointerId==null||e.pointerId===drag.id))endDrag()}));
+window.addEventListener('blur',endDrag);document.addEventListener('visibilitychange',()=>{if(document.hidden)endDrag()});
 function setupReorder(list){
  list.querySelectorAll('.mv').forEach(b=>b.onclick=()=>{const row=b.closest('.lr');
-  if(b.dataset.mv==='-1'){if(row.previousElementSibling)list.insertBefore(row,row.previousElementSibling)}
-  else if(row.nextElementSibling)list.insertBefore(row.nextElementSibling,row);
-  syncLibFromDom(list)});
+  if(b.dataset.mv==='-1'){const p=row.previousElementSibling;if(p)list.insertBefore(p,row.nextElementSibling)}else{const n=row.nextElementSibling;if(n)list.insertBefore(n,row)}syncLibFromDom(list)});
  list.querySelectorAll('.handle').forEach(h=>{
-  h.addEventListener('pointerdown',e=>{e.preventDefault();const row=h.closest('.lr');
-   drag={row,id:e.pointerId,startY:e.clientY,baseTop:row.getBoundingClientRect().top};
-   row.classList.add('dragging');h.setPointerCapture(e.pointerId)});
-  h.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;e.preventDefault();
-   const row=drag.row;row.style.transform='';
-   // find the sibling whose midpoint we've crossed
-   const y=e.clientY;let sib;
-   while((sib=row.previousElementSibling)&&y<sib.getBoundingClientRect().top+sib.offsetHeight/2)list.insertBefore(row,sib);
-   while((sib=row.nextElementSibling)&&y>sib.getBoundingClientRect().top+sib.offsetHeight/2)list.insertBefore(sib,row);
-   const r=row.getBoundingClientRect();row.style.transform=`translateY(${y-(r.top+r.height/2)}px)`;
-   // auto-scroll near edges
-   if(y<60)window.scrollBy(0,-8);else if(y>innerHeight-110)window.scrollBy(0,8)});
-  const end=e=>{if(!drag||e.pointerId!==drag.id)return;drag.row.classList.remove('dragging');drag.row.style.transform='';drag=null;syncLibFromDom(list)};
-  h.addEventListener('pointerup',end);h.addEventListener('pointercancel',end)})
-}
+  h.addEventListener('pointerdown',e=>{if(drag)endDrag();e.preventDefault();const row=h.closest('.lr');drag={row,list,h,id:e.pointerId};row.classList.add('dragging');
+   try{h.setPointerCapture(e.pointerId)}catch(_){}});
+  h.addEventListener('lostpointercapture',e=>{if(drag&&e.pointerId===drag.id)endDrag()})})}
