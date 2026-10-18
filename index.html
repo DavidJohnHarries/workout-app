@@ -29,7 +29,14 @@ pre{white-space:pre-wrap;background:#0b0f17;padding:12px;border-radius:12px;font
 .unsel{background:#14532d;border:0;color:#bbf7d0;width:48px;height:48px;min-width:44px;border-radius:12px;font-size:24px;font-weight:700;margin:-4px -4px -4px 8px}
 .vlink{display:inline-block;padding:8px 10px 8px 0;margin:-8px 0;text-decoration:underline dotted;text-underline-offset:3px}
 .flash{animation:flash 1s}@keyframes flash{0%,40%{box-shadow:0 0 0 3px #22c55e}100%{box-shadow:0 0 0 0 transparent}}
+.ed{background:#1f2937;color:#e5e7eb;width:44px;height:44px;font-size:18px}
+.datebar{display:flex;align-items:center;justify-content:space-between;background:#111827;border-radius:14px;padding:6px;margin:4px 0 10px;position:sticky;top:env(safe-area-inset-top);z-index:3}
+.datebar.past{background:#92400e;color:#fff7ed}.dnav{background:#1f2937;color:#e5e7eb;width:52px;height:48px;font-size:28px}.datebar.past .dnav{background:#b45309;color:#fff}
+.dnav:disabled{opacity:.3}.dlabel{font-weight:700;font-size:18px}.pastban{background:#451a03;color:#fdba74;border:1px solid #b45309;border-radius:12px;padding:10px 12px;margin:0 0 10px;font-weight:600}
+.btn.pastbtn{background:#f59e0b;color:#1c1003}
+.pastban{display:flex;justify-content:space-between;align-items:center;gap:8px}.todayban{background:#111827;border-radius:12px;padding:10px 12px;margin:0 0 10px;font-weight:600}
+.stat{border-radius:999px;padding:4px 12px;font-weight:700;font-size:15px;white-space:nowrap}.stat.ok{background:#16a34a;color:#fff}.stat.no{background:#dc2626;color:#fff}
 </style></head><body>
 <header id="title">Today</header><main id="app"></main>
 <nav><button data-v="log">Log</button><button data-v="lib">Exercises</button><button data-v="hist">History</button></nav>
-<script src="app.js?v=8"></script></body></html>
+<script src="app.js?v=9"></script></body></html>
