@@ -86,12 +86,16 @@ function render(){endDrag();
  }else if(view==='lib'){$('#title').textContent='Exercises';
   const ed=editing?lib.find(e=>e.id===editing):null;if(formGroup==null)formGroup=ed?ed.group||'misc':'misc';const opt=v=>(ed?ed.type:'w')===v?' selected':'';
   a.innerHTML=`<div class="card"><h3>${ed?'Edit exercise':'Add exercise'}</h3><div class="grow"><button type="button" id="gbtn" class="gbtn" aria-label="Group (tap to change)">${gdot(formGroup)}</button><input type="text" id="nn" placeholder="${ed?'Name':'New exercise name'}" value="${esc(ed?ed.name:'')}"></div><select id="nt" style="margin-top:8px"><option value="w"${opt('w')}>Weighted</option><option value="bw"${opt('bw')}>Bodyweight</option><option value="t"${opt('t')}>Timed</option></select><button class="btn full" id="addex">${ed?'Save changes':'Add exercise'}</button>${ed?'<button class="btn sec full" id="edcancel">Cancel</button>':''}</div>`+
-  '<div id="libl">'+lib.map(e=>`<div class="ex lr" data-id="${esc(e.id)}"><span class="handle" aria-label="Drag to reorder">☰</span>${gdot(e.group)}<span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><button class="ed" data-edit="${esc(e.id)}" aria-label="Edit">✎</button><button class="x" data-del="${esc(e.id)}">🗑</button></div>`).join('')+'</div>';
+  '<div id="libl">'+lib.map(e=>`<div class="ex lr" data-id="${esc(e.id)}"><span class="handle" aria-label="Drag to reorder">☰</span><button type="button" class="gcyc" data-g="${esc(e.id)}" aria-label="Change group">${gdot(e.group)}</button><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><button class="ed" data-edit="${esc(e.id)}" aria-label="Edit">✎</button><button class="x" data-del="${esc(e.id)}">🗑</button></div>`).join('')+'</div>';
   setupReorder($('#libl'));
   $('#addex').onclick=()=>{const n=$('#nn').value.trim(),ty=$('#nt').value;if(!n)return;if(lib.some(e=>e!==ed&&e.name.toLowerCase()===n.toLowerCase()))return toast('Already exists');
    if(ed){renameEx(ed,n,ty);ed.group=formGroup}else lib.push({id:n+'-'+Date.now(),name:n,type:ty,group:formGroup});editing=null;formGroup=null;save();render();toast(ed?'Saved':'Added')};
   if(ed)$('#edcancel').onclick=()=>{editing=null;formGroup=null;render()};
   $('#gbtn').onclick=()=>{formGroup=GROUPS[(GROUPS.indexOf(formGroup)+1)%4];$('#gbtn').innerHTML=gdot(formGroup)};
+  // Group circle: cycle + save; swap only this circle (and any matching picker circle) in place.
+  a.querySelectorAll('[data-g]').forEach(b=>{b.addEventListener('pointerdown',e=>e.stopPropagation());b.onclick=e=>{e.preventDefault();e.stopPropagation();
+    const ex=lib.find(x=>x.id===b.dataset.g);if(!ex)return;ex.group=GROUPS[(GROUPS.indexOf(ex.group)+1)%4];save();
+    b.innerHTML=gdot(ex.group);document.querySelectorAll('[data-add]').forEach(r=>{if(r.dataset.add===ex.id){const d=r.querySelector('.gdot');if(d)d.outerHTML=gdot(ex.group)}})}});
   a.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editing=b.dataset.edit;formGroup=null;render();scrollTo(0,0)});
   a.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const e=lib.find(x=>x.id===b.dataset.del);if(confirm(`Delete ${e.name}?`)){lib=lib.filter(x=>x!==e);save();render()}});
  }else{$('#title').textContent='History';
