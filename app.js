@@ -8,7 +8,7 @@ const toD=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
 const addDays=(s,n)=>{const d=toD(s);d.setDate(d.getDate()+n);return ymd(d)};
 const pretty=s=>toD(s).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
 const MAXBACK=30;
-let last=LS('last')||{},hist=LS('hist')||[],days=LS('days')||{},sess=null,lastToday=null,view='log',summary=null,editing=null;
+let formGroup=null;let last=LS('last')||{},hist=LS('hist')||[],days=LS('days')||{},sess=null,lastToday=null,view='log',summary=null,editing=null;
 // ---- Migration from v1 (single 'sess', history keyed by timestamp)
 hist.forEach(h=>{if(!h.day)h.day=ymd(new Date(h.date||Date.now()))});
 (()=>{const old=LS('sess');if(old){const t=today();if(!days[t]&&(old.items&&old.items.length||old.notes))days[t]={date:t,items:old.items||[],notes:old.notes||''};localStorage.removeItem('sess')}})();
@@ -21,6 +21,8 @@ var drag=null;
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 const save=()=>{SV('lib',lib);SV('last',last);SV('hist',hist);SV('days',days)};
 const typeName={w:'Weighted',bw:'Bodyweight',t:'Timed'};
+const GROUPS=['A','B','C','misc'];lib.forEach(e=>{if(!GROUPS.includes(e.group))e.group='misc'});SV('lib',lib);
+const gdot=(g,extra='')=>`<span class="gdot g-${g||'misc'}${extra}" aria-label="Group ${g||'misc'}">${g&&g!=='misc'?g:''}</span>`;
 function typeDef(t){return t==='t'?{sets:3,secs:60}:t==='bw'?{sets:3,reps:10,weight:0}:{sets:3,reps:10,weight:25}}
 // Last-used: most recent history entry before the selected date (by name or former names), else most recent overall.
 function defaults(ex){const names=[ex.name,...(ex.aliases||[])],cur=sess?sess.date:today();let v=null;
@@ -58,8 +60,8 @@ function render(){endDrag();
   const cards=sess.items.map(it=>`<div class="card" id="card-${it.uid}"><h3><span>${esc(it.name)}</span><button class="x" data-rm="${it.uid}">✕</button></h3>`+
    fields(it).map(([k,l,st])=>`<div class="row"><label>${l}</label><button class="step" data-u="${it.uid}" data-k="${k}" data-d="-${st}">−</button><input inputmode="decimal" data-u="${it.uid}" data-k="${k}" value="${it[k]??0}"><button class="step" data-u="${it.uid}" data-k="${k}" data-d="${st}">+</button></div>`).join('')+`</div>`).join('');
   let h=bar+`<div class="muted" style="margin:10px 4px">Tap to add:</div>`+lib.map(e=>{const it=sess.items.find(i=>i.name===e.name);return it?
-    `<div class="ex sel" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small><span class="vlink" data-val="${esc(e.name)}" data-go="${it.uid}">${shortVals(it)}</span></small></span><button class="mark unsel" data-unsel="${it.uid}" aria-label="Remove from session">✓</button></div>`:
-    `<div class="ex" data-add="${esc(e.id)}"><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><span class="mark">+</span></div>`}).join('');
+    `<div class="ex sel" data-add="${esc(e.id)}">${gdot(e.group)}<span class="name">${esc(e.name)}<small><span class="vlink" data-val="${esc(e.name)}" data-go="${it.uid}">${shortVals(it)}</span></small></span><button class="mark unsel" data-unsel="${it.uid}" aria-label="Remove from session">✓</button></div>`:
+    `<div class="ex" data-add="${esc(e.id)}">${gdot(e.group)}<span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><span class="mark">+</span></div>`}).join('');
   h+=`<button class="btn full${isT?'':' pastbtn'}" id="finish" style="margin-top:12px${sess.items.length?'':';opacity:.4'}" ${sess.items.length?'':'disabled'}>${isT?'Finish workout':'Finish '+pretty(sess.date).replace(',','')}</button>`;
   h+=(sess.items.length?`<div class="muted" style="margin:14px 4px 0">${isT?'Today\'s session:':pretty(sess.date)+' session:'}</div>`:'')+cards;
   h+=`<div class="card"><textarea id="notes" placeholder="Notes (optional)">${esc(sess.notes)}</textarea></div>`;
@@ -82,14 +84,15 @@ function render(){endDrag();
   const nav=d=>{if(document.activeElement)document.activeElement.blur();goTo(d);render();scrollTo(0,0)};
   $('#dprev').onclick=()=>{if(sess.date>minD)nav(addDays(sess.date,-1))};$('#dnext').onclick=()=>{if(sess.date<t)nav(addDays(sess.date,1))};
  }else if(view==='lib'){$('#title').textContent='Exercises';
-  const ed=editing?lib.find(e=>e.id===editing):null;const opt=v=>(ed?ed.type:'w')===v?' selected':'';
-  a.innerHTML=`<div class="card"><h3>${ed?'Edit exercise':'Add exercise'}</h3><input type="text" id="nn" placeholder="${ed?'Name':'New exercise name'}" value="${esc(ed?ed.name:'')}"><select id="nt" style="margin-top:8px"><option value="w"${opt('w')}>Weighted</option><option value="bw"${opt('bw')}>Bodyweight</option><option value="t"${opt('t')}>Timed</option></select><button class="btn full" id="addex">${ed?'Save changes':'Add exercise'}</button>${ed?'<button class="btn sec full" id="edcancel">Cancel</button>':''}</div>`+
-  '<div id="libl">'+lib.map(e=>`<div class="ex lr" data-id="${esc(e.id)}"><span class="handle" aria-label="Drag to reorder">☰</span><span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><button class="ed" data-edit="${esc(e.id)}" aria-label="Edit">✎</button><button class="x" data-del="${esc(e.id)}">🗑</button></div>`).join('')+'</div>';
+  const ed=editing?lib.find(e=>e.id===editing):null;if(formGroup==null)formGroup=ed?ed.group||'misc':'misc';const opt=v=>(ed?ed.type:'w')===v?' selected':'';
+  a.innerHTML=`<div class="card"><h3>${ed?'Edit exercise':'Add exercise'}</h3><div class="grow"><button type="button" id="gbtn" class="gbtn" aria-label="Group (tap to change)">${gdot(formGroup)}</button><input type="text" id="nn" placeholder="${ed?'Name':'New exercise name'}" value="${esc(ed?ed.name:'')}"></div><select id="nt" style="margin-top:8px"><option value="w"${opt('w')}>Weighted</option><option value="bw"${opt('bw')}>Bodyweight</option><option value="t"${opt('t')}>Timed</option></select><button class="btn full" id="addex">${ed?'Save changes':'Add exercise'}</button>${ed?'<button class="btn sec full" id="edcancel">Cancel</button>':''}</div>`+
+  '<div id="libl">'+lib.map(e=>`<div class="ex lr" data-id="${esc(e.id)}"><span class="handle" aria-label="Drag to reorder">☰</span>${gdot(e.group)}<span class="name">${esc(e.name)}<small>${typeName[e.type]}</small></span><button class="ed" data-edit="${esc(e.id)}" aria-label="Edit">✎</button><button class="x" data-del="${esc(e.id)}">🗑</button></div>`).join('')+'</div>';
   setupReorder($('#libl'));
   $('#addex').onclick=()=>{const n=$('#nn').value.trim(),ty=$('#nt').value;if(!n)return;if(lib.some(e=>e!==ed&&e.name.toLowerCase()===n.toLowerCase()))return toast('Already exists');
-   if(ed)renameEx(ed,n,ty);else lib.push({id:n+'-'+Date.now(),name:n,type:ty});editing=null;save();render();toast(ed?'Saved':'Added')};
-  if(ed)$('#edcancel').onclick=()=>{editing=null;render()};
-  a.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editing=b.dataset.edit;render();scrollTo(0,0)});
+   if(ed){renameEx(ed,n,ty);ed.group=formGroup}else lib.push({id:n+'-'+Date.now(),name:n,type:ty,group:formGroup});editing=null;formGroup=null;save();render();toast(ed?'Saved':'Added')};
+  if(ed)$('#edcancel').onclick=()=>{editing=null;formGroup=null;render()};
+  $('#gbtn').onclick=()=>{formGroup=GROUPS[(GROUPS.indexOf(formGroup)+1)%4];$('#gbtn').innerHTML=gdot(formGroup)};
+  a.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{editing=b.dataset.edit;formGroup=null;render();scrollTo(0,0)});
   a.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const e=lib.find(x=>x.id===b.dataset.del);if(confirm(`Delete ${e.name}?`)){lib=lib.filter(x=>x!==e);save();render()}});
  }else{$('#title').textContent='History';
   a.innerHTML=hist.length?hist.map((s,i)=>`<div class="card"><pre>${esc(buildSummary(s))}</pre><button class="btn sec" data-c="${i}">Copy</button> <button class="btn danger" data-d="${i}">Delete</button></div>`).join(''):'<p class="muted">No workouts yet.</p>';
@@ -112,7 +115,7 @@ function renameEx(ex,n,ty){const old=ex.name;
 function checkDay(){if(ensureDay())render()}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!summary&&!drag)checkDay()});
 window.addEventListener('focus',()=>{if(!summary&&!drag)checkDay()});
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{summary=null;editing=null;view=b.dataset.v;render()});
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{summary=null;editing=null;formGroup=null;view=b.dataset.v;render()});
 ensureDay();render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js',{scope:'./'});
 
